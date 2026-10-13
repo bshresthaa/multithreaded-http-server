@@ -1,10 +1,9 @@
 #ifndef serverHeader
 #define serverHeader
 
-#include <sys/socket.h> //create an endpoint for communication.
 #include <netinet/in.h>
 #include <iostream>
-//library for listening to requests. 
+//library for listening to requests. x
 #include <unistd.h>
 #include <queue>
 #include <string>
@@ -48,6 +47,7 @@ int openListener(int serverSocket, int queueSize, int port) {
     }else { 
         cout<<"Listening on port: "<<port<<endl; 
     }
+    return -1; 
 }
 
 int acceptConnection(int serverSocket, struct sockaddr_in address) { 
