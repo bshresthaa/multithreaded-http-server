@@ -19,6 +19,7 @@
 #include <chrono>
 #include <thread>
 
+using namespace std; 
 
 const string response = 
                 "HTTP/1.1 200 OK\r\n"
@@ -31,13 +32,29 @@ void handleClient(int connAccept) {
 
         char buffer[1024] = {0};
         ssize_t bytesRead = readFromSocket(connAccept, buffer, sizeof(buffer));
-
+        if (bytesRead <= 0) {
+            close(connAccept);
+            return;
+        }
         //parse the client request and extract the method and path.
         string requestString(buffer, bytesRead);  
-        ssize_t firstSpace = requestString.find(" ");
+        size_t firstSpace = requestString.find(' ');
+        if (firstSpace == string::npos) {
+            close(connAccept);
+            return;
+        }
+
+        size_t secondSpace = requestString.find(' ', firstSpace + 1);
+        if (secondSpace == string::npos) {
+            close(connAccept);
+            return;
+        }
+
         string method = requestString.substr(0, firstSpace);
-        ssize_t secondSpace = requestString.find(" ", firstSpace+1);
-        string path = requestString.substr(firstSpace+1, secondSpace-firstSpace-1);
+        string path = requestString.substr(
+            firstSpace + 1,
+            secondSpace - firstSpace - 1
+        );
 
         //Send response back
         if(method == "GET" && path == "/") { 
@@ -65,37 +82,78 @@ void handleClient(int connAccept) {
             }else{ 
                 cout<<"Response sent sucessfully."<<endl;
             }
-        }else if(method == "GET" && path != "/") {
-            path.erase(0, 1); // Remove the leading '/' from the path
-            ifstream file(path); 
+        }else if (method == "GET" && path != "/") {
+            // Remove the leading '/' from the path
+            path.erase(0, 1);
 
-            if(!file.is_open()) { 
-                cout<<"Failed to open file: "<<path<<endl;
-                string notFoundResponse = 
+            // Reject directory traversal attempts
+            if (path.find("..") != string::npos) {
+                string forbiddenResponse =
+                    "HTTP/1.1 403 Forbidden\r\n"
+                    "Content-Type: text/html\r\n"
+                    "Content-Length: 48\r\n"
+                    "Connection: close\r\n"
+                    "\r\n"
+                    "<html><body><h1>403 Forbidden</h1></body></html>";
+
+                send(connAccept, forbiddenResponse.c_str(),
+                    forbiddenResponse.size(), 0);
+
+                close(connAccept);
+                return;
+            }
+
+            // Open the requested file
+            ifstream file(path);
+
+            if (!file.is_open()) {
+                cout << "Failed to open file: " << path << endl;
+
+                string notFoundResponse =
                     "HTTP/1.1 404 Not Found\r\n"
                     "Content-Type: text/html\r\n"
                     "Content-Length: 48\r\n"
+                    "Connection: close\r\n"
                     "\r\n"
                     "<html><body><h1>404 Not Found</h1></body></html>";
-                send(connAccept, notFoundResponse.c_str(), notFoundResponse.size(), 0);
+
+                send(connAccept, notFoundResponse.c_str(),
+                    notFoundResponse.size(), 0);
+
                 close(connAccept);
-                return; // Exit the function if the file is not found
+                return;
             }
 
-            string fileContent = string(
+            // Read the file contents
+            string fileContent{
                 istreambuf_iterator<char>(file),
                 istreambuf_iterator<char>()
+            };
+
+            size_t contentSize = fileContent.size();
+
+            string fileResponse =
+                response +
+                "Connection: close\r\n" +
+                "Content-Length: " + to_string(contentSize) +
+                "\r\n\r\n" +
+                fileContent;
+
+            cout << "Sending response for file: " << path << endl;
+
+            ssize_t sentData = send(
+                connAccept,
+                fileResponse.c_str(),
+                fileResponse.size(),
+                0
             );
 
-            int contentSize = fileContent.size();
-            string fileResponse = response + "Content-Length: " + to_string(contentSize) + "\r\n\r\n";
-            fileResponse += fileContent; 
-            cout<<"\nSending response back to the client for GET and file path."<<endl;
-            ssize_t sentData =  send(connAccept,fileResponse.c_str(), fileResponse.size(), 0);
-            if(sentData == -1) { 
-                perror("Sending response failed.");
-            }else{ 
-                cout<<"Response sent sucessfully."<<endl;
+            if (sentData == -1) {
+                perror("Sending response failed");
+            } else if (static_cast<size_t>(sentData) < fileResponse.size()) {
+                cerr << "Incomplete response sent." << endl;
+            } else {
+                cout << "Response sent successfully." << endl;
             }
         }
         buffer[0] = '\0'; // Clear the buffer for the next
@@ -146,7 +204,7 @@ class ThreadPool {
                 }
                 else {
                     taskQueue.push(task); //enqueue task
-                    cout<<"Task Enqueueed: "<<task<<endl;
+                    cout << "Socket queued for processing: " << task << endl;
                 }
             }
             condition.notify_one();  //notify worker thread
@@ -170,14 +228,13 @@ class ThreadPool {
                 taskQueue.pop(); 
                 lock.unlock();
 
-                std::cout << "Worker "
-                << std::this_thread::get_id()
-                << " handling socket " << task << std::endl;
+            std::cout << "Worker "
+            << std::this_thread::get_id()
+            << " handling socket " << task << std::endl;
 
                 handleClient(task); //process the task
             }
         }
 }; 
-
 
 #endif
