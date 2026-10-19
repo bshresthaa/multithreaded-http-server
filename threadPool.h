@@ -8,8 +8,11 @@
 
 #include  "httphandler.h"
 
+
 class ThreadPool {
     private:
+        const int maxQueueSize = 10; // Maximum number of tasks in the queue
+        
         std::queue<int> taskQueue;
         std::mutex queueMutex; 
         std::condition_variable condition; 
@@ -38,19 +41,24 @@ class ThreadPool {
             }
         }; 
 
-        void enqueueTask(int task) { 
+        bool enqueueTask(int task) { 
             {
                 std::lock_guard<std::mutex> lock(queueMutex);  //lock Mutex
                 if(shutdown) { 
                     cout<< "ThreadPool is shutting down. Cannot enqueue new tasks."<<endl;
-                    return ; 
+                    return false; 
                 }
                 else {
+                    if(taskQueue.size() >= maxQueueSize) {
+                        cout << "Task queue is full. Cannot enqueue new task: " << task << endl;
+                        return false;
+                    }
                     taskQueue.push(task); //enqueue task
                     cout << "Socket queued for processing: " << task << endl;
                 }
             }
             condition.notify_one();  //notify worker thread
+            return true; 
         }
 
         void workerThread() { 

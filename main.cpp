@@ -3,6 +3,9 @@
 
 using namespace std; 
 
+#include <cerrno>
+#include <cstring>
+
 int main() { 
     //Creating a socket
     int sockAddr = serverSocket(); 
@@ -33,9 +36,16 @@ int main() {
         //Clieent connection descriptor
         int connAccept = acceptConnection(sockAddr, address);
         if (connAccept == -1) {
-            continue;
+            if(errno == EINTR){  // Look at the error type and only retry if it is EINTR, which means the accept call was interrupted by a signal.
+                continue;
+            }else { 
+                perror("Accepting connection failed.");
+                break; 
+            }
         }
-        pool.enqueueTask(connAccept); // Enqueue the accepted connection for processing
+        if(!pool.enqueueTask(connAccept)){
+            close(connAccept);
+        } // Enqueue the accepted connection for processing
     }; 
 
     close(sockAddr); 
