@@ -16,14 +16,19 @@ using namespace std;
 int serverSocket() { 
     //creating the socket : 
     int serverSocket =  socket( PF_INET, SOCK_STREAM, 0 ); 
-    
     if( serverSocket == -1 ){ 
         perror("Socket creation failed."); 
         return -1; 
-    }else { 
-        cout<<"Socket Created"<<endl;
-        return serverSocket;
-    }; 
+    }
+    int opt = 1;
+    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR,
+                &opt, sizeof(opt)) == -1) {
+        perror("setsockopt SO_REUSEADDR failed");
+        close(serverSocket);
+        return -1;
+    }
+    cout<<"Socket Created"<<endl;
+    return serverSocket;
 }
 
 int bindPort(int port, int serverSocket) { 
@@ -55,12 +60,13 @@ int acceptConnection(int serverSocket, struct sockaddr_in& address) {
     socklen_t addrlen = sizeof(address);
     int connAccept = accept( serverSocket, (struct sockaddr*)&address, &addrlen);
     if(connAccept   == -1) { 
-        perror("Accepting connection failed.\n");
+        if (errno != EINTR) {
+            perror("accept failed");
+        }
         return -1;
-    }else {
-        cout<<"Connection accepted.\n"<<endl;
-        return connAccept;
-    } 
+    }
+    cout<<"Connection accepted.\n"<<endl;
+    return connAccept;
 }
 
 int readFromSocket(int connAccept, char* buffer, size_t bufferSize) { 
