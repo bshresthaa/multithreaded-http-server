@@ -66,7 +66,7 @@ void handleClient(int connAccept) {
         if(method == "GET" && path == "/") { 
             cout<<"GET request received for /"<<endl;
                     //Open the file
-            ifstream file("index.html");
+            ifstream file("public/index.html");
 
             if (!file.is_open()) {
                 string notFoundResponse =
@@ -112,7 +112,7 @@ void handleClient(int connAccept) {
             }
 
             // Open the requested file
-            ifstream file(path);
+            ifstream file("public/" + path);
 
             if (!file.is_open()) {
                 cout << "Failed to open file: " << path << endl;
