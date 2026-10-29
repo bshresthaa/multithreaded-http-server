@@ -1,17 +1,12 @@
-#ifndef serverHeader
-#define serverHeader
 
-#include <netinet/in.h>
+#include "serverHeader.h"
+
 #include <iostream>
-//library for listening to requests. x
-#include <unistd.h>
 #include <queue>
 #include <string>
 #include <sstream>
 #include <sys/socket.h>
 
-
-using namespace std; 
 
 int serverSocket() { 
     //creating the socket : 
@@ -27,7 +22,7 @@ int serverSocket() {
         close(serverSocket);
         return -1;
     }
-    cout<<"Socket Created"<<endl;
+    std::cout<<"Socket Created"<<std::endl;
     return serverSocket;
 }
 
@@ -41,7 +36,7 @@ int bindPort(int port, int serverSocket) {
         perror("Binding failed.");
         return -1; 
     }else { 
-        cout<<"Binding successful."<<endl;
+        std::cout<<"Binding successful."<<std::endl;
         return 0;  
     }; 
 }
@@ -52,7 +47,7 @@ int openListener(int serverSocket, int queueSize, int port) {
         return -1;
     }
 
-    cout << "Listening on port: " << port << endl;
+    std::cout << "Listening on port: " << port << std::endl;
     return 0;
 }
 
@@ -65,11 +60,11 @@ int acceptConnection(int serverSocket, struct sockaddr_in& address) {
         }
         return -1;
     }
-    cout<<"Connection accepted.\n"<<endl;
+    std::cout<<"Connection accepted.\n"<<std::endl;
     return connAccept;
 }
 
-int readFromSocket(int connAccept, char* buffer, size_t bufferSize) { 
+ssize_t readFromSocket(int connAccept, char* buffer, size_t bufferSize) { 
     ssize_t bytesRead = read(connAccept, buffer, bufferSize);
     if(bytesRead == -1) { 
         perror("Reading from socket failed.");
@@ -77,19 +72,19 @@ int readFromSocket(int connAccept, char* buffer, size_t bufferSize) {
     }
     
     if (bytesRead == 0) {
-        cout << "Client disconnected." << endl;
+        std::cout << "Client disconnected." << std::endl;
         return 0;
     }
 
-    cout<<"Received: "<< bytesRead << " bytes."<< endl;
+    std::cout<<"Received: "<< bytesRead << " bytes."<< std::endl;
     return static_cast<int>(bytesRead);
 
 }
 
 //Might not even need this function. 
-queue<string> getPath(string path) { 
-    queue<string>slicePath; 
-    string placeHolder; 
+std::queue<std::string> getPath(std::string path) { 
+    std::queue<std::string>slicePath; 
+    std::string placeHolder; 
     // while(string::npos != path.find("/")) { 
     //     ssize_t start = path.find("/");  
     //     ssize_t end = path.find("/", start+1); 
@@ -97,11 +92,9 @@ queue<string> getPath(string path) {
     //     path.erase(start, end-start-1);
     // }; 
     // return slicePath; 
-    stringstream pathStream(path); 
-    while(getline(pathStream, placeHolder, '/' )) { 
+    std::stringstream pathStream(path); 
+    while(std::getline(pathStream, placeHolder, '/' )) { 
         slicePath.push(placeHolder); 
     }
     return slicePath;
 } 
-
-#endif

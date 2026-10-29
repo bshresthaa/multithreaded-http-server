@@ -1,12 +1,12 @@
 
 #include "threadPool.h"
-
-using namespace std; 
+#include "serverHeader.h"
 
 #include <cerrno>
 #include <cstring>
 #include <csignal>
 #include <atomic>
+
 
 volatile std::sig_atomic_t shutdownRequested = 0;
 
@@ -51,7 +51,7 @@ int main() {
     return 1;
     }
 
-    cout<<"Waiting for incoming connections..."<<endl;
+    std::cout<<"Waiting for incoming connections..."<<std::endl;
 
     ThreadPool pool(5); 
     while(!shutdownRequested) {
@@ -62,7 +62,7 @@ int main() {
         if (connAccept == -1) {
             if(errno == EINTR){  // Look at the error type and only retry if it is EINTR, which means the accept call was interrupted by a signal.
                 if(shutdownRequested) {
-                    cout << "Shutdown requested. Exiting accept loop." << endl;
+                    std::cout << "Shutdown requested. Exiting accept loop." << std::endl;
                     break; // Exit the loop if shutdown is requested
                 }
                 continue;

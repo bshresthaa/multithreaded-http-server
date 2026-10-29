@@ -1,22 +1,21 @@
-#pragma once
+#include "httpHandler.h"
+#include "serverHeader.h"
 
-#include "serverheader.h"
-#include <queue>
-#include <mutex>
-#include <condition_variable>
-#include <vector>
-#include <thread>
 #include <cstddef>
+#include <cstdio>
 #include <fstream>
-
-#include <chrono>
+#include <iostream>
+#include <string>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <thread>
+#include <unistd.h>
 
-const string response = 
+static const std::string response = 
                 "HTTP/1.1 200 OK\r\n"
                 "Content-Type: text/html\r\n";  
 
-bool sendAll(int socket, const string& data) {
+bool sendAll(int socket, const std::string& data) {
     size_t totalSent = 0;
 
     while (totalSent < data.size()) {
@@ -43,33 +42,33 @@ void handleClient(int connAccept) {
             return;
         }
         //parse the client request and extract the method and path.
-        string requestString(buffer, bytesRead);  
+        std::string requestString(buffer, bytesRead);  
         size_t firstSpace = requestString.find(' ');
-        if (firstSpace == string::npos) {
+        if (firstSpace == std::string::npos) {
             close(connAccept);
             return;
         }
 
         size_t secondSpace = requestString.find(' ', firstSpace + 1);
-        if (secondSpace == string::npos) {
+        if (secondSpace == std::string::npos) {
             close(connAccept);
             return;
         }
 
-        string method = requestString.substr(0, firstSpace);
-        string path = requestString.substr(
+        std::string method = requestString.substr(0, firstSpace);
+        std::string path = requestString.substr(
             firstSpace + 1,
             secondSpace - firstSpace - 1
         );
 
         //Send response back
         if(method == "GET" && path == "/") { 
-            cout<<"GET request received for /"<<endl;
+            std::cout<<"GET request received for /"<<std::endl;
                     //Open the file
-            ifstream file("public/index.html");
+            std::ifstream file("public/index.html");
 
             if (!file.is_open()) {
-                string notFoundResponse =
+                std::string notFoundResponse =
                     "HTTP/1.1 404 Not Found\r\n"
                     "Content-Length: 0\r\n"
                     "Connection: close\r\n"
@@ -80,24 +79,24 @@ void handleClient(int connAccept) {
             }
 
             //Read the files content
-            string content = string(
-                istreambuf_iterator<char>(file),
-                istreambuf_iterator<char>()
+            std::string content = std::string(
+                std::istreambuf_iterator<char>(file),
+                std::istreambuf_iterator<char>()
             );
             int contentSize = content.size();
-            string fileResponse = response + "Content-Length: " + to_string(contentSize) + "\r\n\r\n";
+            std::string fileResponse = response + "Content-Length: " + std::to_string(contentSize) + "\r\n\r\n";
             fileResponse += content; 
-                cout<<"\nSending response back to the client for GET and index path."<<endl;
+                std::cout<<"\nSending response back to the client for GET and index path."<<std::endl;
             if (!sendAll(connAccept, fileResponse)) {
-                cerr << "Failed to send complete response." << endl;
+                std::cerr << "Failed to send complete response." << std::endl;
             }
         }else if (method == "GET" && path != "/") {
             // Remove the leading '/' from the path
             path.erase(0, 1);
 
             // Reject directory traversal attempts
-            if (path.find("..") != string::npos) {
-                string forbiddenResponse =
+            if (path.find("..") != std::string::npos) {
+                std::string forbiddenResponse =
                     "HTTP/1.1 403 Forbidden\r\n"
                     "Content-Type: text/html\r\n"
                     "Content-Length: 48\r\n"
@@ -112,12 +111,12 @@ void handleClient(int connAccept) {
             }
 
             // Open the requested file
-            ifstream file("public/" + path);
+            std::ifstream file("public/" + path);
 
             if (!file.is_open()) {
-                cout << "Failed to open file: " << path << endl;
+                std::cout << "Failed to open file: " << path <<std::endl;
 
-                string notFoundResponse =
+                std::string notFoundResponse =
                     "HTTP/1.1 404 Not Found\r\n"
                     "Content-Type: text/html\r\n"
                     "Content-Length: 48\r\n"
@@ -132,27 +131,27 @@ void handleClient(int connAccept) {
             }
 
             // Read the file contents
-            string fileContent{
-                istreambuf_iterator<char>(file),
-                istreambuf_iterator<char>()
+            std::string fileContent{
+                std::istreambuf_iterator<char>(file),
+                std::istreambuf_iterator<char>()
             };
 
             size_t contentSize = fileContent.size();
 
-            string fileResponse =
+            std::string fileResponse =
                 response +
                 "Connection: close\r\n" +
-                "Content-Length: " + to_string(contentSize) +
+                "Content-Length: " + std::to_string(contentSize) +
                 "\r\n\r\n" +
                 fileContent;
 
-            cout << "Sending response for file: " << path << endl;
+            std::cout << "Sending response for file: " << path << std::endl;
 
             //Check for partial send and handle it
             if (!sendAll(connAccept, fileResponse)) {
-                cerr << "Failed to send complete response." << endl;
+                std::cerr << "Failed to send complete response." << std::endl;
             } else {
-                cout << "Response sent successfully." << endl;
+                std::cout << "Response sent successfully." << std::endl;
             }
         }
         buffer[0] = '\0'; // Clear the buffer for the next
