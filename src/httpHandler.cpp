@@ -30,7 +30,8 @@ bool sendAll(int socket, const std::string& data) {
     return true;
 }                
 
-void handleClient(int connAccept) { 
+void handleClient(Socket&  client) { 
+        int connAccept = client.get();
         std::cout << "START socket " << connAccept
             << " thread " << std::this_thread::get_id()
             << std::endl;
@@ -38,20 +39,17 @@ void handleClient(int connAccept) {
         char buffer[1024] = {0};
         ssize_t bytesRead = readFromSocket(connAccept, buffer, sizeof(buffer));
         if (bytesRead <= 0) {
-            close(connAccept);
             return;
         }
         //parse the client request and extract the method and path.
         std::string requestString(buffer, bytesRead);  
         size_t firstSpace = requestString.find(' ');
         if (firstSpace == std::string::npos) {
-            close(connAccept);
             return;
         }
 
         size_t secondSpace = requestString.find(' ', firstSpace + 1);
         if (secondSpace == std::string::npos) {
-            close(connAccept);
             return;
         }
 
@@ -74,7 +72,6 @@ void handleClient(int connAccept) {
                     "Connection: close\r\n"
                     "\r\n"; 
                 sendAll(connAccept, notFoundResponse);                
-                close(connAccept);
                 return;
             }
 
@@ -106,7 +103,6 @@ void handleClient(int connAccept) {
 
                 sendAll(connAccept, forbiddenResponse);
 
-                close(connAccept);
                 return;
             }
 
@@ -126,7 +122,6 @@ void handleClient(int connAccept) {
 
                 sendAll(connAccept, notFoundResponse);
 
-                close(connAccept);
                 return;
             }
 
@@ -159,6 +154,4 @@ void handleClient(int connAccept) {
         std::cout << "END socket " << connAccept
           << " thread " << std::this_thread::get_id()
           << std::endl;
-
-        close(connAccept);
 }

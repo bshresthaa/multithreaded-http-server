@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "httpHandler.h"
+#include "socket.h"
 
 #include <queue>
 #include <thread>
@@ -21,7 +21,7 @@ class ThreadPool {
 
         const std::size_t maxQueueSize = 10; // Maximum number of tasks in the queue
         
-        std::queue<int> taskQueue;
+        std::queue<Socket> taskQueue;
         std::mutex queueMutex; 
         std::condition_variable condition; 
         std::vector<std::thread> workerThreads;
@@ -37,6 +37,6 @@ class ThreadPool {
         ThreadPool(const ThreadPool&) = delete;
         ThreadPool& operator=(const ThreadPool&) = delete;
 
-        bool enqueueTask(int task);
+        bool enqueueTask(Socket&& task);
 
 };

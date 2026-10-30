@@ -3,9 +3,8 @@
 #include "serverHeader.h"
 
 #include <cerrno>
-#include <cstring>
 #include <csignal>
-#include <atomic>
+#include <utility>
 
 
 volatile std::sig_atomic_t shutdownRequested = 0;
@@ -37,18 +36,18 @@ int main() {
         return 1;
     }
 
+    Socket listeningSocket(sockAddr);
+
     //binding the port
     int port = 8080;
-    if (bindPort(port, sockAddr) == -1) {
-        close(sockAddr);
+    if (bindPort(port, listeningSocket.get()) == -1) {
         return 1;
     } 
 
     //Open listener
     int queueSize = 5; // Maximum number of pending connections
-    if (openListener(sockAddr, queueSize, port) == -1) {
-    close(sockAddr);
-    return 1;
+    if (openListener(listeningSocket.get(), queueSize, port) == -1 ) {
+        return 1;
     }
 
     std::cout<<"Waiting for incoming connections..."<<std::endl;
@@ -58,7 +57,7 @@ int main() {
         //Acceopting connection
         sockaddr_in address{};    
         //Clieent connection descriptor
-        int connAccept = acceptConnection(sockAddr, address);
+        int connAccept = acceptConnection(listeningSocket.get(), address);
         if (connAccept == -1) {
             if(errno == EINTR){  // Look at the error type and only retry if it is EINTR, which means the accept call was interrupted by a signal.
                 if(shutdownRequested) {
@@ -71,12 +70,12 @@ int main() {
                 break; 
             }
         }
-        if(!pool.enqueueTask(connAccept)){
-            close(connAccept);
+        Socket client(connAccept);
+        if(!pool.enqueueTask(std::move(client))) {
+            std::cerr << "Failed to enqueue client socket." << std::endl;
         } // Enqueue the accepted connection for processing
     }; 
 
-    close(sockAddr); 
     return 0; 
 }
 

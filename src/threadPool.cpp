@@ -4,6 +4,7 @@
 //Condition variable to signal when a new task is added to the queue.
 #include "threadPool.h"
 #include "httpHandler.h"
+#include <utility>
 
 ThreadPool::ThreadPool(std::size_t numThreads) {
     for(std::size_t i =0; i<numThreads; ++i) { 
@@ -26,21 +27,21 @@ ThreadPool::~ThreadPool() {
     }
 }; 
 
-bool ThreadPool::enqueueTask(int task) { 
+bool ThreadPool::enqueueTask(Socket&& task) { 
     {
         std::lock_guard<std::mutex> lock(queueMutex);  //lock Mutex
         if(shutdown) { 
             std::cout<< "ThreadPool is shutting down. Cannot enqueue new tasks."<<std::endl;
             return false; 
         }
-        else {
-            if(taskQueue.size() >= maxQueueSize) {
-                std::cout << "Task queue is full. Cannot enqueue new task: " << task << std::endl;
-                return false;
-            }
-            taskQueue.push(task); //enqueue task
-            std::cout << "Socket queued for processing: " << task << std::endl;
+        
+        if(taskQueue.size() >= maxQueueSize) {
+            std::cout << "Task queue is full. Cannot enqueue new task: " << std::endl;
+            return false;
         }
+
+        taskQueue.push(std::move(task)); //enqueue task
+        std::cout << "Socket queued for processing: " << std::endl;
     }
     condition.notify_one();  //notify worker thread
     return true; 
@@ -60,13 +61,13 @@ void ThreadPool::workerThread() {
         if(taskQueue.empty() && shutdown) { 
             return; 
         }  
-        int task = taskQueue.front();
+        Socket task = std::move(taskQueue.front());
         taskQueue.pop(); 
         lock.unlock();
 
     std::cout << "Worker "
     << std::this_thread::get_id()
-    << " handling socket " << task << std::endl;
+    << " handling socket " << std::endl;
 
         handleClient(task); //process the task
     }
