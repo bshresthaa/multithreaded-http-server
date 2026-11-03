@@ -52,7 +52,10 @@ void ThreadPool::workerThread() {
     << std::this_thread::get_id() << std::endl;
 
     while(true) { 
+        Socket task(-1);
+
         std::unique_lock<std::mutex> lock(queueMutex); 
+        {
         condition.wait(
             lock, [this] { 
                 return !taskQueue.empty() || shutdown; 
@@ -63,11 +66,12 @@ void ThreadPool::workerThread() {
         }  
         Socket task = std::move(taskQueue.front());
         taskQueue.pop(); 
-        lock.unlock();
 
-    std::cout << "Worker "
-    << std::this_thread::get_id()
-    << " handling socket " << std::endl;
+        } //lock is released here
+
+        std::cout << "Worker "
+        << std::this_thread::get_id()
+        << " handling socket " << std::endl;
 
         handleClient(task); //process the task
     }
