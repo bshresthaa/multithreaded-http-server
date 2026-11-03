@@ -54,18 +54,18 @@ void ThreadPool::workerThread() {
     while(true) { 
         Socket task(-1);
 
-        std::unique_lock<std::mutex> lock(queueMutex); 
         {
-        condition.wait(
-            lock, [this] { 
-                return !taskQueue.empty() || shutdown; 
-            }
-        );
-        if(taskQueue.empty() && shutdown) { 
-            return; 
-        }  
-        Socket task = std::move(taskQueue.front());
-        taskQueue.pop(); 
+            std::unique_lock<std::mutex> lock(queueMutex); 
+            condition.wait(
+                lock, [this] { 
+                    return !taskQueue.empty() || shutdown; 
+                }
+            );
+            if(taskQueue.empty() && shutdown) { 
+                return; 
+            }  
+            task = std::move(taskQueue.front());
+            taskQueue.pop(); 
 
         } //lock is released here
 
